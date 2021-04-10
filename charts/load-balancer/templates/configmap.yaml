@@ -1,0 +1,71 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-conf
+  namespace: default
+data:
+  nginx.conf: |
+    worker_processes 1;
+
+    events { worker_connections 1024; }
+
+    http {
+
+        client_max_body_size 50M;
+
+        sendfile on;
+
+        upstream designer {
+            server altinn-designer:3000;           
+        }
+
+        upstream repositories {
+            server altinn-repositories:3000;            
+        }
+
+        server {
+            listen 443;
+            ssl on;
+            server_name pi.altinn.studio;
+            ssl_certificate     /etc/nginx/ssl/pi.altinn.studio.pem;
+            ssl_certificate_key /etc/nginx/ssl/pi.altinn.studio.key;
+
+            ssl_protocols TLSv1.2;
+
+            proxy_cookie_path ~*^/.* /;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+
+            location = / {
+                proxy_pass         http://designer/;
+            }
+
+            rewrite ^/.*/.*/staticfiles(.*)$ $1 last;
+
+            location /Home/  {
+                proxy_pass         http://designer/Home/;
+            }
+
+            location /designer/ {
+                proxy_pass         http://designer/designer/;
+            }
+
+            location /designerapi/ {
+                proxy_pass         http://designer/designerapi/;
+            }
+
+
+            location / {
+                proxy_pass          http://designer/;
+            }
+
+            location /repos/ {
+                proxy_pass         http://repositories/;
+            }
+
+        }
+    }
+
+    
